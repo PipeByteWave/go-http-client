@@ -3,28 +3,36 @@ package httptestwrap
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"testing"
+	"reflect"
+
 	"github.com/gin-gonic/gin"
-	"github.com/stretchr/testify/assert"
 )
 
-func NewRequestTestGo(t *testing.T, r *gin.Engine, method, url string, bod any, response any) (*httptest.ResponseRecorder, error) {
-	assert.NotNil(t, response, "response no puede ser nil")
-	assert.IsType(t, response, response, "response debe ser un puntero a una estructura o slice")
+func NewRequestTestGo(r *gin.Engine, method, url string, bod any, response any) (*httptest.ResponseRecorder, error) {
+	if response == nil {
+		return nil, errors.New("error: response no puede ser nil")
+	}
+
+	if reflect.TypeOf(response).Kind() != reflect.Ptr {
+		return nil, errors.New("error: response debe ser un puntero a una estructura o slice")
+	}
+
 	var jsonData []byte
 	var err error
 	if bod != nil {
 		jsonData, err = json.Marshal(bod)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("error al serializar el cuerpo de la solicitud: %w", err)
 		}
 	}
 
-	req, err := http.NewRequest(method, url ,bytes.NewBuffer(jsonData))
+	req, err := http.NewRequest(method, url, bytes.NewBuffer(jsonData))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error al crear la solicitud HTTP: %w", err)
 	}
 
 	if len(jsonData) > 0 {
@@ -32,10 +40,12 @@ func NewRequestTestGo(t *testing.T, r *gin.Engine, method, url string, bod any, 
 	}
 
 	rr := httptest.NewRecorder()
-
 	r.ServeHTTP(rr, req)
 
 	err = json.Unmarshal(rr.Body.Bytes(), response)
-	assert.NoError(t, err, "Error al leer el cuerpo de la respuesta")
+	if err != nil {
+		return nil, fmt.Errorf("error al deserializar la respuesta JSON: %w", err)
+	}
+
 	return rr, nil
 }
