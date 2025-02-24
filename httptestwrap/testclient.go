@@ -13,10 +13,6 @@ import (
 )
 
 func NewRequestTestGo(r *gin.Engine, method, url string, bod any, response any) (*httptest.ResponseRecorder, error) {
-	if response == nil {
-		return nil, errors.New("error: response no puede ser nil")
-	}
-
 	if reflect.TypeOf(response).Kind() != reflect.Ptr {
 		return nil, errors.New("error: response debe ser un puntero a una estructura o slice")
 	}
